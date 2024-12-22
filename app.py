@@ -1,20 +1,21 @@
 from flask import Flask, render_template, jsonify, make_response, request
 from weather import *
+import dash_app
 
-app = Flask(__name__)
+flask_app = Flask(__name__)
 
 # Web interface logic
-@app.route('/')
+@flask_app.route('/')
 def main_page():
     return render_template('main.html')
 
 
-@app.route('/favicon.ico')
+@flask_app.route('/favicon.ico')
 def favicon():
     return '', 204
 
 
-@app.route('/get_weather_data', methods=['POST'])
+@flask_app.route('/get_weather_data', methods=['POST'])
 def get_weather_data():
     latitude = float(request.form['latitude'])
     longitude = float(request.form['longitude'])
@@ -24,14 +25,18 @@ def get_weather_data():
     if weather_data is None:
         return jsonify({})
 
-    weather_data["weather_type"] = get_weather_type(float(weather_data["temperature"]),
-                                                    float(weather_data["humidity"]),
-                                                    float(weather_data["windSpeed"]),
-                                                    float(weather_data["precipitationProbability"]))
+    for data in weather_data:
+        data["weather_type"] = get_weather_type(float(data["temperature"]),
+                                                float(data["humidity"]),
+                                                float(data["windSpeed"]),
+                                                float(data["precipitationProbability"]))
+
+    dash_app.dash_app1.layout.children[0].data = weather_data
+
     return jsonify(weather_data)
 
 
-@app.route('/check_weather_type', methods=['POST'])
+@flask_app.route('/check_weather_type', methods=['POST'])
 def check_weather_type():
     temperature = float(request.form['temperature'])
     humidity = float(request.form['humidity'])
@@ -42,7 +47,7 @@ def check_weather_type():
     return jsonify({'weather_type': weather_type})
 
 
-@app.route('/get_weather_in_points', methods=['POST'])
+@flask_app.route('/get_weather_in_points', methods=['POST'])
 def get_weather_in_points():
     if bool(request.form['city']):
         first_point = get_location_by_city(request.form['city-1'])
@@ -70,19 +75,22 @@ def get_weather_in_points():
     return jsonify([first_weather, second_weather])
 
 
-@app.errorhandler(404)
+@flask_app.errorhandler(404)
 def not_found(error):
     if error is None:
         error = "Object not found"
     return make_response(jsonify({'error': error}), 404)
 
 
-@app.errorhandler(400)
+@flask_app.errorhandler(400)
 def bad_request(error):
     if error is None:
         error = "Invalid request"
     return make_response(jsonify({'error': error}), 400)
 
 
+dash_app.initialize_dash(flask_app)
+
 if __name__ == '__main__':
-    app.run()
+    flask_app.run()
+

@@ -74,7 +74,7 @@
     </style>
 </head>
 <body>
-<div class="container mt-5">
+<div class="container mt-5" style="margin-bottom: 100px;">
     <h1 class="text-center text-primary">Прогноз погоды</h1>
     <ul class="nav nav-tabs" id="weather-tabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -216,14 +216,14 @@
             .then(data => {
                 const resultDiv = document.getElementById('weather-result-tab1');
                 resultDiv.innerHTML = '';
-                if (data) {
-                    const weatherTypeClass = getWeatherClass(data.weather_type);
+                if (data[0]) {
+                    const weatherTypeClass = getWeatherClass(data[0].weather_type);
                     resultDiv.innerHTML = `
-                    <p><strong>Температура:</strong> ${data.temperature}°C</p>
-                    <p><strong>Влажность:</strong> ${data.humidity}%</p>
-                    <p><strong>Скорость ветра:</strong> ${data.windSpeed} м/с</p>
-                    <p><strong>Вероятность осадков:</strong> ${data.precipitationProbability}%</p>
-                    <div class="alert ${weatherTypeClass}"><strong>Тип погоды:</strong> ${data.weather_type}</div>
+                    <div class="alert ${weatherTypeClass}"><strong>Тип погоды:</strong> ${data[0].weather_type}</div>
+                    <div class="tab-pane fade show active" id="tab1" role="tabpanel" style="margin-top: 50px">
+                        <h3>Интерактивное отображение</h3>
+                        <iframe src="/dash-tab1/" style="height: 800px; width:100%;border:none;overflow:visible;"></iframe>
+                    </div>
                 `;
                 } else {
                     resultDiv.innerHTML = '<p class="text-danger">Ошибка при получении данных о погоде.</p>';

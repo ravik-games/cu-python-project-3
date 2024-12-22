@@ -48,24 +48,42 @@ def get_current_weather(location_key = None, _retry_count = 0):
         else:
             return None
 
-    # Get 1-hour forecast for precipitation probability
-    forecast = get_hour_prediction(location_key)
+    # Get 12-hour forecast
+    forecast = get_12_hours_prediction(location_key)
     if forecast is None:
         return None
 
     # Print extracted data from response to temp/last_response.json and temp/last_extracted_data.json
     raw_response = response.json()[0]
 
+    data = []
+
     wind = raw_response["Wind"]["Speed"]["Metric"]["Value"]
     if raw_response["Wind"]["Speed"]["Metric"]["Unit"] == "km/h":
-        wind = "%.2f" % (wind * 5/18)
-
-    data = {
+        wind = (wind * 5 / 18)
+    wind = "%.2f" % wind
+    data.append({
         "temperature": raw_response["Temperature"]["Metric"]["Value"],
         "humidity": raw_response["RelativeHumidity"],
         "windSpeed": wind,
-        "precipitationProbability": forecast[0]["PrecipitationProbability"],
-    }
+        "precipitationProbability": 1 if raw_response["HasPrecipitation"] else 0,
+        "datetime": raw_response["LocalObservationDateTime"]
+    })
+
+    for i, prediction in enumerate(forecast):
+        if i == 0:
+            continue
+        wind = prediction["Wind"]["Speed"]["Value"]
+        if prediction["Wind"]["Speed"]["Unit"] == "km/h":
+            wind = (wind * 5 / 18)
+        wind = "%.2f" % wind
+        data.append({
+            "temperature": prediction["Temperature"]["Value"],
+            "humidity": prediction["RelativeHumidity"],
+            "windSpeed": wind,
+            "precipitationProbability": prediction["PrecipitationProbability"],
+            "datetime": prediction["DateTime"]
+        })
 
     os.makedirs(os.path.dirname("temp/last_response.json"), exist_ok=True)
 
@@ -92,6 +110,27 @@ def get_hour_prediction(location_key, _retry_count = 0):
         # Retry or abort
         if retry_request(_retry_count):
             get_hour_prediction(location_key, _retry_count + 1)
+        else:
+            return None
+
+    return response.json()
+
+
+def get_12_hours_prediction(location_key, _retry_count = 0):
+    forecast_url = f"http://dataservice.accuweather.com/forecasts/v1/hourly/12hour/{location_key}"
+
+    response = requests.get(url=forecast_url, params={
+        "apikey": credentials.api_key,
+        "language": "ru-RU",
+        "details": "true",
+        "metric": "true"
+    })
+
+    if response.status_code != 200 or response.json() is None:
+        print(f"Error occurred while getting current weather: {response.status_code}, {response.text}.")
+        # Retry or abort
+        if retry_request(_retry_count):
+            get_12_hours_prediction(location_key, _retry_count + 1)
         else:
             return None
 
