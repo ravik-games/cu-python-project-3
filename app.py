@@ -20,7 +20,7 @@ def get_weather_data():
     latitude = float(request.form['latitude'])
     longitude = float(request.form['longitude'])
 
-    location_key = get_location_by_geoposition(latitude, longitude)
+    location_key = get_location_by_geoposition(latitude, longitude)['location_key']
     weather_data = get_current_weather(location_key)
     if weather_data is None:
         return jsonify({})
@@ -49,30 +49,57 @@ def check_weather_type():
 
 @flask_app.route('/get_weather_in_points', methods=['POST'])
 def get_weather_in_points():
-    if bool(request.form['city']):
-        first_point = get_location_by_city(request.form['city-1'])
-        second_point = get_location_by_city(request.form['city-2'])
+    points = []
+    print(request.form)
+
+    if bool(request.form['city'] == 'true'):
+        points.append(get_location_by_city(request.form['city-1']))
+        points.append(get_location_by_city(request.form['city-2']))
+
+        stop_index = 1
+        while f'city-stop-{stop_index}' in request.form:
+            stop = get_location_by_city(request.form[f'city-stop-{stop_index}'])
+            points.insert(-1, stop)
+            stop_index += 1
     else:
-        first_point = get_location_by_geoposition(float(request.form['latitude-1']), float(request.form['longitude-1']))
-        second_point = get_location_by_geoposition(float(request.form['latitude-2']), float(request.form['longitude-2']))
+        points.append(get_location_by_geoposition(float(request.form['latitude-1']), float(request.form['longitude-1'])))
+        points.append(get_location_by_geoposition(float(request.form['latitude-2']), float(request.form['longitude-2'])))
 
-    first_weather = get_current_weather(first_point)
-    second_weather = get_current_weather(second_point)
+        stop_index = 1
+        while f'latitude-stop-{stop_index}' in request.form and f'longitude-stop-{stop_index}' in request.form:
+            stop = get_location_by_geoposition(
+                float(request.form[f'latitude-stop-{stop_index}']),
+                float(request.form[f'longitude-stop-{stop_index}'])
+            )
+            points.insert(-1, stop)
+            stop_index += 1
 
-    if first_weather is None or second_weather is None:
-        return jsonify({})
+    weather_data = []
+    for point in points:
+        if isinstance(point, dict):
+            city_name = point.get("city_name", f"{point.get('latitude', 'unknown')}, {point.get('longitude', 'unknown')}")
+        else:
+            city_name = str(point)  # Если точка — строка (например, название города)
 
-    first_weather["weather_type"] = get_weather_type(float(first_weather["temperature"]),
-                                                    float(first_weather["humidity"]),
-                                                    float(first_weather["windSpeed"]),
-                                                    float(first_weather["precipitationProbability"]))
+        forecast = get_current_weather(point["location_key"], request.form['forecast-time'])
+        if forecast is None:
+            continue
 
-    second_weather["weather_type"] = get_weather_type(float(second_weather["temperature"]),
-                                                     float(second_weather["humidity"]),
-                                                     float(second_weather["windSpeed"]),
-                                                     float(second_weather["precipitationProbability"]))
+        for weather in forecast:
+            weather["weather_type"] = get_weather_type(
+                float(weather["temperature"]),
+                float(weather["humidity"]),
+                float(weather["windSpeed"]),
+                float(weather["precipitationProbability"])
+            )
+            weather["city"] = city_name
 
-    return jsonify([first_weather, second_weather])
+        weather_data.append(forecast)
+
+    dash_app.dash_app3.layout.children[0].data = weather_data
+    dash_app.dash_app3.layout.children[1].data = {'unit': 'hours', 'value': 12} if request.form['forecast-time'] == '12_hours' else {'unit': 'days', 'value': 5}
+
+    return jsonify(weather_data)
 
 
 @flask_app.errorhandler(404)

@@ -159,6 +159,7 @@
                         <label for="city-1" class="form-label">Город 1</label>
                         <input type="text" class="form-control" id="city-1" name="city-1" required>
                     </div>
+                    <div id="stop-points-city"></div>
                     <div class="mb-3">
                         <label for="city-2" class="form-label">Город 2</label>
                         <input type="text" class="form-control" id="city-2" name="city-2" required>
@@ -167,24 +168,35 @@
 
                 <div id="coordinates-inputs" style="display: none;">
                     <div class="mb-3">
-                        <label for="latitude-1" class="form-label">Широта 1</label>
-                        <input type="text" class="form-control" id="latitude-1" name="latitude-1">
+                        <label class="form-label">Координаты 1</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="latitude-1" placeholder="Широта" disabled
+                                   required>
+                            <input type="text" class="form-control" name="longitude-1" placeholder="Долгота" disabled
+                                   required>
+                        </div>
                     </div>
+                    <div id="stop-points-coords"></div>
                     <div class="mb-3">
-                        <label for="longitude-1" class="form-label">Долгота 1</label>
-                        <input type="text" class="form-control" id="longitude-1" name="longitude-1">
-                    </div>
-                    <div class="mb-3">
-                        <label for="latitude-2" class="form-label">Широта 2</label>
-                        <input type="text" class="form-control" id="latitude-2" name="latitude-2">
-                    </div>
-                    <div class="mb-3">
-                        <label for="longitude-2" class="form-label">Долгота 2</label>
-                        <input type="text" class="form-control" id="longitude-2" name="longitude-2">
+                        <label class="form-label">Координаты 2</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="latitude-2" placeholder="Широта" disabled
+                                   required>
+                            <input type="text" class="form-control" name="longitude-2" placeholder="Долгота" disabled
+                                   required>
+                        </div>
                     </div>
                 </div>
+                <label for="forecast-time">Время прогноза</label>
+                <select id="forecast-time" class="form-select" name="forecast-time" style="margin-bottom: 10px" required>
+                    <option value="12_hours">12 часов</option>
+                    <option value="5_days">5 дней</option>
+                </select>
+                <div class="d-flex justify-content-between mb-3">
+                    <button type="submit" class="btn btn-primary">Сравнить точки</button>
+                    <button type="button" class="btn btn-secondary" id="add-stop">Добавить остановку</button>
+                </div>
 
-                <button type="submit" class="btn btn-primary">Сравнить точки</button>
             </form>
             <div id="weather-result-tab3" class="mt-3"></div>
         </div>
@@ -282,54 +294,156 @@
     }
 
     // Переключение между вводом городов и координат
+    document.getElementById('add-stop').addEventListener('click', function () {
+        let stopPointsDiv;
+        stopPointsDiv = document.getElementById('stop-points-coords');
+        if (document.getElementById('inputCity').checked) {
+            stopPointsDiv = document.getElementById('stop-points-city');
+        }
+        const stopIndex = stopPointsDiv.children.length + 1;
+
+        if (document.getElementById('inputCity').checked) {
+            const stopHtml = `
+                <div class="mb-3">
+                    <label for="city-stop-${stopIndex}" class="form-label">Промежуточный город ${stopIndex}</label>
+                    <input type="text" class="form-control" id="city-stop-${stopIndex}" name="city-stop-${stopIndex}" required>
+                </div>
+            `;
+            stopPointsDiv.insertAdjacentHTML('beforeend', stopHtml);
+        } else {
+            const stopHtml = `
+                <div class="mb-3">
+                    <label class="form-label">Координаты остановки ${stopIndex}</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="latitude-stop-${stopIndex}" name="latitude-stop-${stopIndex}" placeholder="Широта" required>
+                        <input type="text" class="form-control" id="longitude-stop-${stopIndex}" name="longitude-stop-${stopIndex}" placeholder="Долгота" required>
+                    </div>
+                </div>
+            `;
+            stopPointsDiv.insertAdjacentHTML('beforeend', stopHtml);
+        }
+    });
+
+    // При переключении между городами и координатами
     document.querySelectorAll('input[name="city"]').forEach(radio => {
         radio.addEventListener('change', function () {
             const cityInputs = document.getElementById('city-inputs');
             const coordinatesInputs = document.getElementById('coordinates-inputs');
+            let stopPointsDiv;
+            stopPointsDiv = document.getElementById('stop-points-coords');
+            if (document.getElementById('inputCity').checked) {
+                stopPointsDiv = document.getElementById('stop-points-city');
+            }
+            stopPointsDiv.innerHTML = ''; // Очистить остановки при смене режима
+
             if (this.value === "true") {
+                console.log("CITY", this.value)
+                // Городской режим
                 cityInputs.style.display = "block";
                 coordinatesInputs.style.display = "none";
+
+                // Отключаем поля координат
+                coordinatesInputs.querySelectorAll('input').forEach(input => {
+                    input.disabled = true;  // Делаем недоступными
+                    input.value = "";  // Очищаем значения
+                });
+                cityInputs.querySelectorAll('input').forEach(input => {
+                    input.disabled = false;  // Включаем поля для городов
+                });
             } else {
+                console.log("coords", this.value)
+                // Координатный режим
                 cityInputs.style.display = "none";
                 coordinatesInputs.style.display = "block";
+
+                // Отключаем поля городов
+                cityInputs.querySelectorAll('input').forEach(input => {
+                    input.disabled = true;  // Делаем недоступными
+                    input.value = "";  // Очищаем значения
+                });
+                coordinatesInputs.querySelectorAll('input').forEach(input => {
+                    input.disabled = false;  // Включаем поля для координат
+                });
             }
         });
     });
 
-    // Обработка формы для 3 вкладки
+
     document.getElementById('points-form').addEventListener('submit', function (e) {
         e.preventDefault();
-        const formData = new FormData(this);
+
+        const formData = new FormData();
+        const cityMode = document.getElementById('inputCity').checked;
+
+        formData.append('city', document.getElementById('inputCity').checked);
+        console.log(document.getElementById('inputCity').checked);
+
+        if (cityMode) {
+            // Добавление городов
+            const city1 = document.getElementById('city-1').value;
+            const city2 = document.getElementById('city-2').value;
+            formData.append('city-1', city1);
+            formData.append('city-2', city2);
+
+            // Добавление промежуточных городов
+
+            const cityInputs = document.getElementById('stop-points-city');
+            cityInputs.querySelectorAll('input').forEach((input, index) => {
+                formData.append(`city-stop-${index + 1}`, input.value);
+            });
+        } else {
+            // Добавление координат
+            const latitude1 = document.querySelector('input[name="latitude-1"]').value;
+            const longitude1 = document.querySelector('input[name="longitude-1"]').value;
+            const latitude2 = document.querySelector('input[name="latitude-2"]').value;
+            const longitude2 = document.querySelector('input[name="longitude-2"]').value;
+
+            formData.append('latitude-1', latitude1);
+            formData.append('longitude-1', longitude1);
+            formData.append('latitude-2', latitude2);
+            formData.append('longitude-2', longitude2);
+
+            console.log(formData);
+            // Добавление промежуточных координат
+
+            const coordinatesInputs = document.getElementById('stop-points-coords');
+            coordinatesInputs.querySelectorAll('input-group').forEach((group, index) => {
+                console.log(group, index);
+                const latitudeInput = group.querySelector('input[name^="latitude-stop"]');
+                const longitudeInput = group.querySelector('input[name^="longitude-stop"]');
+                formData.append(`latitude-stop-${index + 1}`, latitudeInput.value);
+                formData.append(`longitude-stop-${index + 1}`, longitudeInput.value);
+            });
+        }
+
+        formData.append('forecast-time', document.getElementById('forecast-time').value);
+
+        // Отправка данных на сервер
         fetch('/get_weather_in_points', {
             method: 'POST',
-            body: formData
+            body: formData,
         })
             .then(response => response.json())
             .then(data => {
                 const resultDiv = document.getElementById('weather-result-tab3');
                 resultDiv.innerHTML = '';
-                if (data.length === 2) {
-                    const point1Class = getWeatherClass(data[0].weather_type);
-                    const point2Class = getWeatherClass(data[1].weather_type);
-                    resultDiv.innerHTML = `
+
+                if (data.length > 0) {
+                    data.forEach((point, index) => {
+                        const pointClass = getWeatherClass(point[0].weather_type);
+                        resultDiv.innerHTML += `
                         <div>
-                            <h4>Точка 1</h4>
-                            <p><strong>Температура:</strong> ${data[0].temperature}°C</p>
-                            <p><strong>Влажность:</strong> ${data[0].humidity}%</p>
-                            <p><strong>Скорость ветра:</strong> ${data[0].windSpeed} м/с</p>
-                            <p><strong>Вероятность осадков:</strong> ${data[0].precipitationProbability}%</p>
-                            <div class="alert ${point1Class}"><strong>Тип погоды:</strong> ${data[0].weather_type}</div>
+                            <h4>Точка ${index + 1} (${point[0].city})</h4>
+                            <div class="alert ${pointClass}"><strong>Тип погоды:</strong> ${point[0].weather_type}</div>
                         </div>
                         <hr>
-                        <div>
-                            <h4>Точка 2</h4>
-                            <p><strong>Температура:</strong> ${data[1].temperature}°C</p>
-                            <p><strong>Влажность:</strong> ${data[1].humidity}%</p>
-                            <p><strong>Скорость ветра:</strong> ${data[1].windSpeed} м/с</p>
-                            <p><strong>Вероятность осадков:</strong> ${data[1].precipitationProbability}%</p>
-                            <div class="alert ${point2Class}"><strong>Тип погоды:</strong> ${data[1].weather_type}</div>
-                        </div>
                     `;
+                    });
+
+                    resultDiv.innerHTML += `
+                    <h3>Интерактивное отображение</h3>
+                    <iframe src="/dash-tab3/" style="height: 800px; width:100%;border:none;overflow:visible;"></iframe>
+                `;
                 } else {
                     resultDiv.innerHTML = '<p class="text-danger">Ошибка при получении данных о погоде.</p>';
                 }

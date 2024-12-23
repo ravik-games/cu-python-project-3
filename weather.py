@@ -24,11 +24,11 @@ def get_location_by_geoposition(latitude = 55.4424, longitude = 37.3636, _retry_
             return None
 
     location_key = response.json()["Key"]
-    return location_key
+    return {"location_key": location_key, "latitude": latitude, "longitude": longitude}
 
 
 # Returns current key params of weather. Also, response is stored in /temp folder
-def get_current_weather(location_key = None, _retry_count = 0):
+def get_current_weather(location_key = None, forecast_time = '12_hours', _retry_count = 0):
     if location_key is None:
         return None
 
@@ -49,7 +49,12 @@ def get_current_weather(location_key = None, _retry_count = 0):
             return None
 
     # Get 12-hour forecast
-    forecast = get_12_hours_prediction(location_key)
+    if forecast_time == '12_hours':
+        forecast = get_12_hours_prediction(location_key)
+    else:
+        forecast = get_5_days_prediction(location_key)
+        if forecast_time != '12_hours':
+            forecast = forecast["DailyForecasts"]
     if forecast is None:
         return None
 
@@ -71,19 +76,34 @@ def get_current_weather(location_key = None, _retry_count = 0):
     })
 
     for i, prediction in enumerate(forecast):
+
         if i == 0:
             continue
-        wind = prediction["Wind"]["Speed"]["Value"]
-        if prediction["Wind"]["Speed"]["Unit"] == "km/h":
-            wind = (wind * 5 / 18)
-        wind = "%.2f" % wind
-        data.append({
-            "temperature": prediction["Temperature"]["Value"],
-            "humidity": prediction["RelativeHumidity"],
-            "windSpeed": wind,
-            "precipitationProbability": prediction["PrecipitationProbability"],
-            "datetime": prediction["DateTime"]
-        })
+
+        if forecast_time == '12_hours':
+            wind = prediction["Wind"]["Speed"]["Value"]
+            if prediction["Wind"]["Speed"]["Unit"] == "km/h":
+                wind = (wind * 5 / 18)
+            wind = "%.2f" % wind
+            data.append({
+                "temperature": prediction["Temperature"]["Value"],
+                "humidity": prediction["RelativeHumidity"],
+                "windSpeed": wind,
+                "precipitationProbability": prediction["PrecipitationProbability"],
+                "datetime": prediction["DateTime"]
+            })
+        else:
+            wind = prediction["Day"]["Wind"]["Speed"]["Value"]
+            if prediction["Day"]["Wind"]["Speed"]["Unit"] == "km/h":
+                wind = (wind * 5 / 18)
+            wind = "%.2f" % wind
+            data.append({
+                "temperature": (prediction["Temperature"]["Minimum"]["Value"] + prediction["Temperature"]["Maximum"]["Value"]) / 2,
+                "humidity": prediction["Day"]["RelativeHumidity"]["Average"],
+                "windSpeed": wind,
+                "precipitationProbability": prediction["Day"]["PrecipitationProbability"],
+                "datetime": prediction["Date"]
+            })
 
     os.makedirs(os.path.dirname("temp/last_response.json"), exist_ok=True)
 
@@ -137,6 +157,27 @@ def get_12_hours_prediction(location_key, _retry_count = 0):
     return response.json()
 
 
+def get_5_days_prediction(location_key, _retry_count = 0):
+    forecast_url = f"http://dataservice.accuweather.com/forecasts/v1/daily/5day/{location_key}"
+
+    response = requests.get(url=forecast_url, params={
+        "apikey": credentials.api_key,
+        "language": "ru-RU",
+        "details": "true",
+        "metric": "true"
+    })
+
+    if response.status_code != 200 or response.json() is None:
+        print(f"Error occurred while getting current weather: {response.status_code}, {response.text}.")
+        # Retry or abort
+        if retry_request(_retry_count):
+            get_5_days_prediction(location_key, _retry_count + 1)
+        else:
+            return None
+
+    return response.json()
+
+
 def get_weather_type(temperature: float, humidity: float, wind_speed: float, precipitation_probability: float):
     precipitation_probability = precipitation_probability / 100 # Convert to 0 to 1
     if temperature < -10 or temperature > 35:
@@ -178,7 +219,7 @@ def get_location_by_city(city_name, _retry_count = 0):
             return None
 
     location_key = response.json()[0]["Key"]
-    return location_key
+    return {"location_key": location_key, "city_name": city_name}
 
 
 # Error handlers
