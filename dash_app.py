@@ -243,8 +243,8 @@ def init_third_tab():
 
         time_unit = slider_data.get('unit', 'hours')
         if time_unit == 'days':
-            from_time = df_cities[0].loc[0, 'datetime'] + timedelta(days=time_range[0] - 1)
-            to_time = df_cities[0].loc[0, 'datetime'] + timedelta(days=time_range[1])
+            from_time = df_cities[0].loc[1, 'datetime'] + timedelta(days=time_range[0] - 2)
+            to_time = df_cities[0].loc[0, 'datetime'] + timedelta(days=time_range[1] - 1)
         else:  # Default to hours
             from_time = df_cities[0].loc[0, 'datetime'] + timedelta(hours=time_range[0])
             to_time = df_cities[0].loc[0, 'datetime'] + timedelta(hours=time_range[1])
